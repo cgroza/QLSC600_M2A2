@@ -1,4 +1,5 @@
 library(tidyverse)
+library(MASS)
 
 ld.data <- read_table("plink.ld", col_names = T) %>% select(SNP_A, SNP_B, R2)
 ## get the other symmetric half of the matrix
@@ -26,3 +27,13 @@ ggplot(gwas.data) + geom_point(aes(x=ld.score, y=CHISQ)) +
   geom_text(aes(x=15, y=400), label = paste("h^2=", round(M/N *ld.score.regression$coefficients['ld.score'], 3))) +
   ggtitle("Multiple sclerosis LD score regression") + xlab("LD Score") + ylab("Chi-squared")
 ggsave("ldscore.png")
+
+tiled <- gwas.data %>% mutate(quintile = ntile(ld.score, 100)) %>% group_by(quintile) %>%
+  summarize(CHISQ_mean = mean(CHISQ), bin.ld.score = mean(ld.score), ld.weight = 1/max(ld.score))
+bin.ld.score.regression <- rlm(CHISQ_mean ~ bin.ld.score, data = tiled, weights = ld.weight)
+ggplot(tiled) + geom_point(aes(x=bin.ld.score, y=CHISQ_mean)) +
+  geom_smooth(aes(x=bin.ld.score, y=CHISQ_mean), method='lm') +
+  geom_text(aes(x=10, y=1), label = paste("h^2=", round(M/N *bin.ld.score.regression$coefficients['bin.ld.score'], 3))) +
+  ggtitle("Multiple sclerosis LD score regression (binned)") + xlab("LD Score Bin") + ylab("Mean Chi-squared") + theme_bw()
+ggsave("binned_ldscore.png")
+

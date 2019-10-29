@@ -2,9 +2,11 @@ library(tidyverse)
 library(ggplot2)
 
 betas <- read_table("plink.assoc.logistic", col_names = T)
-
 adj.p <- read_table("plink.assoc.logistic.adjusted", col_names = T)
+
 sig.snps <- filter(adj.p, BONF < 0.05)
+
+haploreg <- read_table("haploreg.txt", col_names = F)
 
 freqs <- read_tsv("plink2.afreq", col_names = T) %>% filter(ID %in% betas$SNP)
 
@@ -23,3 +25,10 @@ ggplot(freqs) + geom_jitter(aes(x="SNP", y=log10(HERIT), color = Bonferroni), wi
 ggsave("snp-heritability.png")
 
 freqs %>% filter(Bonferroni=="Significant") %>% summarise(TOTAL=sum(HERIT))
+
+betas$Bonferroni <- if_else(betas$SNP %in% sig.snps$SNP, "Significant", "Non-significant")
+betas$HERIT <- freqs$HERIT
+
+pruned <- betas %>% filter(Bonferroni == "Significant") %>% select(CHR, SNP, BP, HERIT) %>% group_by(CHR) %>% summarise(H_max = max(HERIT))
+
+print(sum(pruned$H_max))
